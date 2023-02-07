@@ -28,6 +28,7 @@ import com.datastax.driver.core.policies.RackAwareRoundRobinPolicy;
 import com.datastax.driver.core.policies.LoadBalancingPolicy;
 import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.datastax.driver.core.policies.WhiteListPolicy;
+import com.datastax.driver.core.policies.ConstantSpeculativeExecutionPolicy;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import io.netty.util.internal.logging.Slf4JLoggerFactory;
 import org.apache.cassandra.config.EncryptionOptions;
@@ -121,6 +122,7 @@ public class JavaDriverClient
             if (stmt != null)
                 return stmt;
             stmt = getSession().prepare(query);
+            stmt.setIdempotent(true);
             stmts.put(query, stmt);
         }
         return stmt;
@@ -147,6 +149,11 @@ public class JavaDriverClient
         clusterBuilder.withPort(port)
                 .withPoolingOptions(poolingOpts)
                 .withoutJMXReporting()
+                .withSpeculativeExecutionPolicy(
+                    new ConstantSpeculativeExecutionPolicy(
+                        100, // delay (ms) before a new execution is launched
+                        2    // maximum number of executions
+                    ))
                 .withProtocolVersion(protocolVersion)
                 .withoutMetrics(); // The driver uses metrics 3 with conflict with our version
 
